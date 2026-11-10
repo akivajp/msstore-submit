@@ -13,7 +13,7 @@ on:
         required: true
         type: string
       command:
-        description: "check | show | submit | discard (see msstore.py --help)"
+        description: "check | show | submit | commit | discard (see msstore.py --help)"
         required: false
         type: string
         default: check

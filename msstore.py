@@ -14,6 +14,8 @@ Commands:
            the package, applies the listing files, uploads the files, and
            commits it (or, with --no-commit, leaves it as a draft to look
            at in Partner Center), then follows it until certification starts.
+  commit   Commits the pending submission (a draft left by submit
+           --no-commit, looked at in Partner Center) and follows it.
   discard  Deletes the pending submission (a draft or a failed one).
 
 Listing files (one TOML file per language, named after it: en-us.toml,
@@ -339,13 +341,24 @@ def submit(
         upload(upload_url, files)
     if not commit:
         print(
-            f"left as a draft: look at it in Partner Center, then submit it there "
-            f"(or delete it with the discard command)"
+            "left as a draft: look at it in Partner Center, then submit it there or "
+            "with the commit command (or delete it with the discard command)"
         )
         return
     request("POST", f"{API}/applications/{app_id}/submissions/{submission_id}/commit", token=token)
     print("committed", flush=True)
     follow(token, app_id, submission_id)
+
+
+def commit_pending(app_id: str) -> None:
+    """Commits the pending submission (a draft) and follows it."""
+    token = store_token()
+    pending = app_info(token, app_id).get("pendingApplicationSubmission")
+    if not pending:
+        raise SystemExit("no pending submission")
+    request("POST", f"{API}/applications/{app_id}/submissions/{pending['id']}/commit", token=token)
+    print(f"committed the pending submission {pending['id']}", flush=True)
+    follow(token, app_id, pending["id"])
 
 
 def discard(app_id: str) -> None:
@@ -371,6 +384,7 @@ def main() -> None:
         ("check", "read the app and its submissions (changes nothing)"),
         ("show", "print the pending or last published submission (changes nothing)"),
         ("submit", "make a new submission (package, listings) and commit it"),
+        ("commit", "commit the pending submission (a draft)"),
         ("discard", "delete the pending submission"),
     ]:
         command = sub.add_parser(name, help=help_text)
@@ -393,6 +407,8 @@ def main() -> None:
         if args.package and not args.package.is_file():
             raise SystemExit(f"no package {args.package}")
         submit(args.app_id, args.package, args.listings, args.images, not args.no_commit)
+    elif args.command == "commit":
+        commit_pending(args.app_id)
     elif args.command == "discard":
         discard(args.app_id)
 

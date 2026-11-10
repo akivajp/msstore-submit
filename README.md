@@ -25,6 +25,10 @@ It signs in **without a client secret**: the job's GitHub OIDC token is exchange
 ## Commands
 
 - `check`: reads the app and its submissions and shows their state; changes nothing.
+- `show`: prints the pending (or the last published) submission as JSON, without its upload URL; changes nothing.
+- `submit`: makes a new submission from the last published one, replaces the package (`artifact` and `package`), applies the listing files (`listings`: a folder of `<language>.toml` files; see `msstore.py --help` for the fields) and, with `images`, their screenshots; then commits it (`commit: true`) and follows it until certification starts, or leaves it as a draft to look at in Partner Center.
+- `commit`: commits the pending submission (a draft).
+- `discard`: deletes the pending submission.
 
 ## License
 
