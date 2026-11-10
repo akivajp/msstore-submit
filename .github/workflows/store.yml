@@ -1,0 +1,38 @@
+# The reusable workflow that apps call to work with their Microsoft Store
+# submissions. The caller's job needs `permissions: id-token: write`, and
+# its repository an environment named `msstore` that a federated
+# credential on the Entra ID app trusts
+# (repo:<owner>@<owner_id>/<repo>@<repo_id>:environment:msstore).
+name: Microsoft Store
+
+on:
+  workflow_call:
+    inputs:
+      app-id:
+        description: The app's Store ID (Partner Center > Product identity), such as 9P6KDQX7JZS4
+        required: true
+        type: string
+      command:
+        description: "check: read the app and its submissions (changes nothing)"
+        required: false
+        type: string
+        default: check
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  store:
+    name: Microsoft Store (${{ inputs.command }})
+    runs-on: ubuntu-latest
+    # In the caller's repository: what the federated credential trusts.
+    environment: msstore
+    steps:
+      # This repository (the script), whatever repository calls it.
+      - uses: actions/checkout@v7
+        with:
+          repository: akivajp/msstore-submit
+          path: msstore-submit
+      - name: Run
+        run: python3 msstore-submit/msstore.py "${{ inputs.command }}" --app-id "${{ inputs.app-id }}"
