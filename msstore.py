@@ -11,9 +11,12 @@ Commands:
   show     Prints the last published (or the pending) submission as JSON,
            without its upload URL (changes nothing).
   submit   Makes a new submission from the last published one: replaces
-           the package, applies the listing files, uploads the files, and
-           commits it (or, with --no-commit, leaves it as a draft to look
-           at in Partner Center), then follows it until certification starts.
+           the package, applies the listing files (printing what changes),
+           uploads the files, and commits it, then follows it until
+           certification starts. With --no-commit it stays a draft: Partner
+           Center shows its changes only once committed (and a submission
+           edited there can no longer be changed through the API), so look
+           at the printed changes, then use the commit command.
   commit   Commits the pending submission (a draft left by submit
            --no-commit, looked at in Partner Center) and follows it.
   discard  Deletes the pending submission (a draft or a failed one).
@@ -227,10 +230,13 @@ def apply_listing(
         if field in fields and base.get(key) != fields[field]:
             base[key] = fields[field]
             changed.append(key)
+            print(f"--- {source.stem} {key}:\n{fields[field]}\n", flush=True)
     for field, key in LIST_FIELDS.items():
         if field in fields and list(base.get(key) or []) != list(fields[field]):
             base[key] = list(fields[field])
             changed.append(key)
+            items = "\n".join(f"- {item}" for item in fields[field])
+            print(f"--- {source.stem} {key}:\n{items}\n", flush=True)
     shots = fields.get("screenshots")
     if images and shots:
         kept = []
@@ -341,8 +347,10 @@ def submit(
         upload(upload_url, files)
     if not commit:
         print(
-            "left as a draft: look at it in Partner Center, then submit it there or "
-            "with the commit command (or delete it with the discard command)"
+            "left as a draft. Partner Center shows an API submission's changes only once it "
+            "is committed, and one edited or submitted there can no longer be changed through "
+            "the API: look at the changes above (or with the show command), then commit it "
+            "with the commit command, or delete it with the discard command"
         )
         return
     request("POST", f"{API}/applications/{app_id}/submissions/{submission_id}/commit", token=token)
