@@ -13,10 +13,35 @@ on:
         required: true
         type: string
       command:
-        description: "check: read the app and its submissions (changes nothing)"
+        description: "check | show | submit | discard (see msstore.py --help)"
         required: false
         type: string
         default: check
+      artifact:
+        description: "submit: the artifact (of this workflow run) that holds the package"
+        required: false
+        type: string
+        default: ""
+      package:
+        description: "submit: the package's file name in the artifact (a shell pattern)"
+        required: false
+        type: string
+        default: "*.msix"
+      listings:
+        description: "submit: the folder of listing files (*.toml) in the calling repository"
+        required: false
+        type: string
+        default: ""
+      images:
+        description: "submit: also replace the screenshots with the listing files' ones"
+        required: false
+        type: boolean
+        default: false
+      commit:
+        description: "submit: commit the submission (false leaves it as a draft in Partner Center)"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -29,10 +54,43 @@ jobs:
     # In the caller's repository: what the federated credential trusts.
     environment: msstore
     steps:
-      # This repository (the script), whatever repository calls it.
+      # The calling repository (its listing files and screenshots).
+      - uses: actions/checkout@v7
+        with:
+          path: app
+      # This repository (the script).
       - uses: actions/checkout@v7
         with:
           repository: akivajp/msstore-submit
           path: msstore-submit
+      - if: inputs.artifact != ''
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.artifact }}
+          path: artifact
       - name: Run
-        run: python3 msstore-submit/msstore.py "${{ inputs.command }}" --app-id "${{ inputs.app-id }}"
+        env:
+          COMMAND: ${{ inputs.command }}
+          APP_ID: ${{ inputs.app-id }}
+          ARTIFACT: ${{ inputs.artifact }}
+          PACKAGE: ${{ inputs.package }}
+          LISTINGS: ${{ inputs.listings }}
+          IMAGES: ${{ inputs.images }}
+          COMMIT: ${{ inputs.commit }}
+        run: |
+          args=("$COMMAND" --app-id "$APP_ID")
+          if [[ "$COMMAND" == submit ]]; then
+            if [[ -n "$ARTIFACT" ]]; then
+              # The one file in the artifact that matches the pattern.
+              mapfile -t found < <(find artifact -type f -name "$PACKAGE")
+              if [[ ${#found[@]} -ne 1 ]]; then
+                echo "expected one package matching $PACKAGE in $ARTIFACT, found ${#found[@]}: ${found[*]}" >&2
+                exit 1
+              fi
+              args+=(--package "${found[0]}")
+            fi
+            [[ -n "$LISTINGS" ]] && args+=(--listings "app/$LISTINGS")
+            [[ "$IMAGES" == true ]] && args+=(--images)
+            [[ "$COMMIT" == true ]] || args+=(--no-commit)
+          fi
+          python3 msstore-submit/msstore.py "${args[@]}"
