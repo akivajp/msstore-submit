@@ -26,7 +26,7 @@ It signs in **without a client secret**: the job's GitHub OIDC token is exchange
 
 - `check`: reads the app and its submissions and shows their state; changes nothing.
 - `show`: prints the pending (or the last published) submission as JSON, without its upload URL; changes nothing.
-- `submit`: makes a new submission from the last published one, replaces the package (`artifact` and `package`), applies the listing files (`listings`: a folder of `<language>.toml` files; see `msstore.py --help` for the fields) and, with `images`, their screenshots; then commits it (`commit: true`) and follows it until certification starts, or leaves it as a draft to look at in Partner Center.
+- `submit`: makes a new submission from the last published one, replaces the package (`artifact` and `package`; with one package per architecture, a `package` pattern that matches them all and their number as `package-count`), applies the listing files (`listings`: a folder of `<language>.toml` files; see `msstore.py --help` for the fields) and, with `images`, their screenshots; then commits it (`commit: true`) and follows it until certification starts, or leaves it as a draft to look at in Partner Center.
 - `commit`: commits the pending submission (a draft).
 
 **Partner Center shows a submission made through the API only as it was before, until it is committed**, and a submission edited or submitted in Partner Center can no longer be changed or committed through the API. Look at a draft's changes in the workflow's log (`submit` prints them) or with `show`, and commit it with `commit`, not in Partner Center.

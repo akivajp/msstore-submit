@@ -11,7 +11,8 @@ Commands:
   show     Prints the last published (or the pending) submission as JSON,
            without its upload URL (changes nothing).
   submit   Makes a new submission from the last published one: replaces
-           the package, applies the listing files (printing what changes),
+           the packages (--package, once per architecture's package),
+           applies the listing files (printing what changes),
            uploads the files, and commits it, then follows it until
            certification starts. With --no-commit it stays a draft: Partner
            Center shows its changes only once committed (and a submission
@@ -296,7 +297,7 @@ def follow(token: str, app_id: str, submission_id: str) -> None:
 
 def submit(
     app_id: str,
-    package: Path | None,
+    packages: list[Path],
     listing_dir: Path | None,
     images: bool,
     commit: bool,
@@ -317,9 +318,11 @@ def submit(
     print(f"new submission {submission_id}", flush=True)
     files: dict[str, Path] = {}
 
-    if package:
+    if packages:
+        # The new packages replace every package of the last submission.
         for old in sub.get("applicationPackages", []):
             old["fileStatus"] = "PendingDelete"
+    for package in packages:
         sub.setdefault("applicationPackages", []).append(
             {
                 "fileName": package.name,
@@ -398,7 +401,10 @@ def main() -> None:
         command = sub.add_parser(name, help=help_text)
         command.add_argument("--app-id", required=True, help="the Store ID, such as 9P6KDQX7JZS4")
         if name == "submit":
-            command.add_argument("--package", type=Path, help="the .msix to replace the package with")
+            command.add_argument(
+                "--package", type=Path, action="append", default=[],
+                help="the .msix to replace the packages with (repeat it for each architecture's)",
+            )
             command.add_argument("--listings", type=Path, help="the folder of listing files (*.toml)")
             command.add_argument(
                 "--images", action="store_true", help="also replace the screenshots"
@@ -412,8 +418,12 @@ def main() -> None:
     elif args.command == "show":
         show(args.app_id)
     elif args.command == "submit":
-        if args.package and not args.package.is_file():
-            raise SystemExit(f"no package {args.package}")
+        for package in args.package:
+            if not package.is_file():
+                raise SystemExit(f"no package {package}")
+        names = [package.name for package in args.package]
+        if len(set(names)) != len(names):
+            raise SystemExit(f"the packages need different file names: {names}")
         submit(args.app_id, args.package, args.listings, args.images, not args.no_commit)
     elif args.command == "commit":
         commit_pending(args.app_id)

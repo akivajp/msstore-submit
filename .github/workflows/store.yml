@@ -27,6 +27,11 @@ on:
         required: false
         type: string
         default: "*.msix"
+      package-count:
+        description: "submit: how many packages the pattern must match (one per architecture)"
+        required: false
+        type: number
+        default: 1
       listings:
         description: "submit: the folder of listing files (*.toml) in the calling repository"
         required: false
@@ -74,6 +79,7 @@ jobs:
           APP_ID: ${{ inputs.app-id }}
           ARTIFACT: ${{ inputs.artifact }}
           PACKAGE: ${{ inputs.package }}
+          PACKAGE_COUNT: ${{ inputs.package-count }}
           LISTINGS: ${{ inputs.listings }}
           IMAGES: ${{ inputs.images }}
           COMMIT: ${{ inputs.commit }}
@@ -81,13 +87,16 @@ jobs:
           args=("$COMMAND" --app-id "$APP_ID")
           if [[ "$COMMAND" == submit ]]; then
             if [[ -n "$ARTIFACT" ]]; then
-              # The one file in the artifact that matches the pattern.
-              mapfile -t found < <(find artifact -type f -name "$PACKAGE")
-              if [[ ${#found[@]} -ne 1 ]]; then
-                echo "expected one package matching $PACKAGE in $ARTIFACT, found ${#found[@]}: ${found[*]}" >&2
+              # The files in the artifact that match the pattern: as many
+              # as expected (one, unless there is one per architecture).
+              mapfile -t found < <(find artifact -type f -name "$PACKAGE" | sort)
+              if [[ ${#found[@]} -ne "$PACKAGE_COUNT" ]]; then
+                echo "expected $PACKAGE_COUNT package(s) matching $PACKAGE in $ARTIFACT, found ${#found[@]}: ${found[*]}" >&2
                 exit 1
               fi
-              args+=(--package "${found[0]}")
+              for package in "${found[@]}"; do
+                args+=(--package "$package")
+              done
             fi
             [[ -n "$LISTINGS" ]] && args+=(--listings "app/$LISTINGS")
             [[ "$IMAGES" == true ]] && args+=(--images)
